@@ -1,0 +1,46 @@
+@(playerName: String)(implicit rh: RequestHeader)
+
+@main("Game") {
+
+<h3>Hello, @playerName!</h3>
+
+<p>Current board height: @actors.ws.BlockBusterGameActor.boardHeight</p>
+
+<hr/>
+
+<div id="logger"></div>
+
+<script language="JavaScript">
+    var socket = new WebSocket('@routes.Application.gameSocket(playerName).webSocketURL()'),
+            logger = document.getElementById("logger");
+
+    function log(msg) {
+        var existingContent = logger.innerHTML
+        logger.innerHTML = "<p>" + msg + "</p>" + existingContent
+    }
+
+    socket.onerror = function (error) {
+        log(error.data);
+        console.error(error);
+    };
+
+    socket.onmessage = function (e) {
+        e.preventDefault();
+        log("SERVER: " + e.data);
+        console.log(e.data);
+    };
+
+    socket.onopen = function () {
+        log("connection opened");
+    };
+
+    socket.onclose = function () {
+        log("connection closed");
+    };
+
+    window.maku = {};
+    window.maku.socket = socket;
+
+</script>
+
+}

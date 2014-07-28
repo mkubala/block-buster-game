@@ -1,0 +1,9 @@
+@()(implicit rh: RequestHeader)
+
+@main("Welcome to Play") {
+
+<p>Go to <a href="@routes.Application.game("somePlayerName")">/game/somePlayerName</a> and open a console.<br/>
+    You can edit app/views/game.scala.html or write your own FE - just use
+    '@routes.Application.gameSocket("somePlayerName").webSocketURL()' as a WebSocket URI</p>
+
+}
