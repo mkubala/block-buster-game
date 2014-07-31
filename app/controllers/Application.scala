@@ -1,7 +1,6 @@
 package controllers
 
-import actors.ws.BlockBusterGameActor
-//import play.api.Play.current
+import actors.BlockBusterGameActor
 import play.api.libs.json.JsValue
 import play.api.mvc._
 

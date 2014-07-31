@@ -1,6 +1,8 @@
-package actors.ws
+package actors
 
-import actors.ws.BlockEmbedded.BlockShape
+import actors.messages.ConnectionMessages._
+import actors.messages.GameMessages._
+import actors.state.{PlayerState, GameState}
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
@@ -113,130 +115,11 @@ class BlockBusterGameActor extends Actor with ActorLogging {
 
 }
 
-case class GameState(playerStates: Map[String, PlayerState], boardHeight: Int = 20) {
-
-  def without(playerName: String): GameState = copy(playerStates = playerStates - playerName)
-
-  def moveBlockDown(playerName: String): (GameState, Boolean) = {
-    playerStates.get(playerName) match {
-      case Some(playerState) =>
-        if (playerState.blockPos == 0) {
-          val newState: GameState = copy(playerStates + (playerName -> playerState.copy(blockPos = boardHeight)))
-          (newState, true)
-        } else {
-          val newState: GameState = copy(playerStates + (playerName -> playerState.copy(blockPos = playerState.blockPos - 1)))
-          (newState, false)
-        }
-      case None => (this, false)
-    }
-  }
-}
-
-case class PlayerState(name: String, ticksScheduler: Cancellable, blockPos: Int)
-
-case class Join(username: String)
-
-case class Connected(enumerator: Enumerator[JsValue])
-
-case class ConnectionError(cause: String)
 
 
-trait Message {
-  def kind: String
 
-  def playerName: String
-}
 
-object Message {
-  def json[T](kind: String, player: String, payload: JsValue): JsValue =
-    JsObject(Seq(
-      ("kind" -> JsString(kind)),
-      ("player" -> JsString(player)),
-      ("payload" -> payload)
-    ))
-}
 
-case class Tick(playerName: String) extends Message {
-  val kind = "tick"
-}
 
-object Tick {
-  implicit val jsonWrites: Writes[Tick] = new Writes[Tick] {
-    override def writes(tick: Tick): JsValue =
-      Message.json("tick", tick.playerName, JsObject(Seq.empty[(String, JsValue)]))
-  }
-}
 
-sealed class MoveDirection(val encodedVal: Int)
-
-case object MoveLeft extends MoveDirection(-1)
-
-case object MoveDown extends MoveDirection(0)
-
-case object MoveRight extends MoveDirection(1)
-
-object MoveDirection {
-  def apply(encodedValue: Int): MoveDirection =
-    if (encodedValue == -1) {
-      MoveLeft
-    } else if (encodedValue == 1) {
-      MoveRight
-    } else {
-      MoveDown
-    }
-}
-
-case class Move(playerName: String, direction: MoveDirection) extends Message {
-  val kind = Move.kind
-}
-
-object Move {
-  val kind = "move"
-
-  implicit val jsonFormat: Format[Move] = new Format[Move] {
-
-    override def writes(move: Move): JsValue = Message.json(Move.kind, move.playerName, JsObject(Seq(
-      ("direction" -> JsNumber(move.direction.encodedVal))
-    )))
-
-    override def reads(json: JsValue): JsResult[Move] = JsSuccess {
-      val player = (json \ "player").as[String]
-      val direction = MoveDirection((json \ "payload" \ "direction").as[Int])
-      Move(player, direction)
-    }
-  }
-}
-
-case class PlayerEvent(event: JsValue)
-
-case class Disconnected(playerName: String)
-
-case class BlockEmbedded(playerName: String, blockShape: BlockShape) extends Message {
-  val kind = BlockEmbedded.kind
-}
-
-object BlockEmbedded {
-  type BlockShape = Int
-  val kind = "embedded"
-
-  implicit val jsonFormat: Format[BlockEmbedded] = new Format[BlockEmbedded] {
-    override def writes(be: BlockEmbedded): JsValue = {
-      val payload = JsObject(Seq(
-        ("newBlock" -> JsObject(Seq(
-          ("shape" -> JsNumber(be.blockShape))
-        )))
-      ))
-      Message.json(kind, be.playerName, payload)
-    }
-
-    override def reads(json: JsValue): JsResult[BlockEmbedded] =
-      (for {
-        kind <- (json \ "kind").asOpt[String]
-        if (kind == BlockEmbedded.kind)
-        player <- (json \ "player").asOpt[String]
-        shape <- (json \ "payload" \ "newBlock" \ "shape").asOpt[BlockShape]
-      } yield BlockEmbedded(player, shape)).map(JsSuccess(_)).getOrElse(JsError())
-  }
-
-}
 
