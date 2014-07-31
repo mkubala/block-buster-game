@@ -2,7 +2,7 @@ package actors
 
 import actors.messages.ConnectionMessages._
 import actors.messages.GameMessages._
-import actors.state.{PlayerState, GameState}
+import actors.state.{GameState, PlayerState}
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
@@ -20,8 +20,7 @@ import scala.util.Random
 object BlockBusterGameActor {
 
   val tickInterval = 500 milliseconds
-  val boardHeight = 20
-  
+
   lazy val defaultGame = Akka.system.actorOf(Props[BlockBusterGameActor], "defaultGame")
 
   implicit val defaultTimeout = Timeout(5 seconds)
@@ -92,7 +91,6 @@ class BlockBusterGameActor extends Actor with ActorLogging {
   def performMoveDown(gameState: GameState, move: Move): Unit = {
     val Move(playerName, direction) = move
     val (newState, genNewBlock) = gameState.moveBlockDown(playerName)
-    log.debug(s"MOVE: $playerName, $direction, actual state = ${newState}")
     if (genNewBlock) {
       outputChannel.push(Json.toJson(BlockEmbedded(playerName, Random.nextInt(7))))
     } else {
@@ -108,9 +106,9 @@ class BlockBusterGameActor extends Actor with ActorLogging {
       val cancellable: Cancellable = Akka.system.scheduler.schedule(0 milliseconds, BlockBusterGameActor.tickInterval) {
         self ! Tick(playerName)
       }
-      (playerName, PlayerState(playerName, cancellable, BlockBusterGameActor.boardHeight))
+      (playerName, PlayerState(playerName, cancellable))
     }.toMap
-    GameState(playerStates, BlockBusterGameActor.boardHeight)
+    GameState(playerStates)
   }
 
 }
