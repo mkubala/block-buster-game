@@ -2,7 +2,7 @@ package actors
 
 import actors.messages.ConnectionMessages._
 import actors.messages.GameMessages._
-import actors.state.{GameState, PlayerState}
+import actors.state._
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
@@ -89,12 +89,14 @@ class BlockBusterGameActor extends Actor with ActorLogging {
   }
 
   def performMoveDown(gameState: GameState, move: Move): Unit = {
-    val Move(playerName, direction) = move
-    val (newState, genNewBlock) = gameState.moveBlockDown(playerName)
-    if (genNewBlock) {
-      outputChannel.push(Json.toJson(BlockEmbedded(playerName, Random.nextInt(7))))
-    } else {
-      outputChannel.push(Json.toJson(move))
+    val Move(playerName, _) = move
+    val (newState, maybeNewBlock) = gameState.moveBlockDown(playerName)
+    outputChannel.push {
+      maybeNewBlock map { newBlock =>
+        Json.toJson(BlockEmbedded(playerName, Random.nextInt(7)))
+      } getOrElse {
+        Json.toJson(move)
+      }
     }
     context.become(playingGame(newState))
   }
@@ -102,11 +104,12 @@ class BlockBusterGameActor extends Actor with ActorLogging {
   def receive = waitingForPlayers(Set.empty[String])
 
   def setUpNewGame(players: Set[String]): GameState = {
+    val defaultBoard = Board.empty(10, 20)
     val playerStates: Map[String, PlayerState] = players.map { playerName =>
       val cancellable: Cancellable = Akka.system.scheduler.schedule(0 milliseconds, BlockBusterGameActor.tickInterval) {
         self ! Tick(playerName)
       }
-      (playerName, PlayerState(playerName, cancellable))
+      (playerName, PlayerState(playerName, cancellable, Block(Matrix(Vector(Vector(true, true), Vector(true, true)))), defaultBoard))
     }.toMap
     GameState(playerStates)
   }

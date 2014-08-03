@@ -7,12 +7,12 @@ case class GameState(playerStates: Map[String, PlayerState]) {
   def withUpdatedPlayerState(playerState: PlayerState) =
     copy(playerStates = playerStates + (playerState.name -> playerState))
 
-  def moveBlockDown(playerName: String): (GameState, Boolean) = {
+  def moveBlockDown(playerName: String): (GameState, Option[Block]) = {
     playerStates.get(playerName) match {
       case Some(playerState) =>
-        val (newPlayerState, blockHasBeenEmbedded) = playerState.moveBlockDown
-        (withUpdatedPlayerState(newPlayerState), blockHasBeenEmbedded)
-      case None => (this, false)
+        val (newPlayerState, maybeNewBlock) = playerState.moveBlockDown
+        (withUpdatedPlayerState(newPlayerState), maybeNewBlock)
+      case None => (this, None)
     }
   }
 }
