@@ -2,6 +2,7 @@ package actors
 
 import actors.messages.ConnectionMessages._
 import actors.messages.GameMessages._
+import actors.state.Block.Shape
 import actors.state._
 import akka.actor._
 import akka.pattern.ask
@@ -23,6 +24,8 @@ object BlockBusterGameActor {
 
   lazy val defaultGame = Akka.system.actorOf(Props[BlockBusterGameActor], "defaultGame")
 
+  lazy val defaultBoard = Board.empty(10, 20)
+
   implicit val defaultTimeout = Timeout(5 seconds)
 
   def join(username: String): Future[Either[Result, (Iteratee[JsValue, _], Enumerator[JsValue])]] = {
@@ -42,11 +45,12 @@ object BlockBusterGameActor {
   }
 
   def error(cause: String): JsObject = JsObject(Seq(
-    ("kind" -> JsString("error")),
-    ("payload" -> JsObject(Seq(
-      ("cause" -> JsString(cause)))
+    "kind" -> JsString("error"),
+    "payload" -> JsObject(Seq(
+      "cause" -> JsString(cause)
     ))
   ))
+
 
 }
 
@@ -91,7 +95,7 @@ class BlockBusterGameActor extends Actor with ActorLogging {
   def performMoveDown(gameState: GameState, move: Move): Unit = {
     val Move(playerName, _) = move
     val (newState, maybeNewBlock) = gameState.moveBlockDown(playerName)
-    outputChannel.push {
+    sendBroadcast {
       maybeNewBlock map { newBlock =>
         Json.toJson(BlockEmbedded(playerName, Random.nextInt(7)))
       } getOrElse {
@@ -101,16 +105,25 @@ class BlockBusterGameActor extends Actor with ActorLogging {
     context.become(playingGame(newState))
   }
 
+  def sendBroadcast(message: JsValue) {
+    outputChannel.push(message)
+  }
+
   def receive = waitingForPlayers(Set.empty[String])
 
   def setUpNewGame(players: Set[String]): GameState = {
-    val defaultBoard = Board.empty(10, 20)
+    val blocks: Map[String, (Shape, Block)] = players.map { name => name -> Block.random}.toMap
     val playerStates: Map[String, PlayerState] = players.map { playerName =>
       val cancellable: Cancellable = Akka.system.scheduler.schedule(0 milliseconds, BlockBusterGameActor.tickInterval) {
         self ! Tick(playerName)
       }
-      (playerName, PlayerState(playerName, cancellable, Block(Matrix(Vector(Vector(true, true), Vector(true, true)))), defaultBoard))
+      val (_, block) = blocks(playerName)
+      (playerName, PlayerState(playerName, cancellable, block, BlockBusterGameActor.defaultBoard))
     }.toMap
+    blocks.map { playerAndBlock =>
+      val (playerName, (shape, _)) = playerAndBlock
+      Json.toJson(BlockEmbedded(playerName, shape))
+    } foreach sendBroadcast
     GameState(playerStates)
   }
 

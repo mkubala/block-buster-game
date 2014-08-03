@@ -20,7 +20,10 @@ object Block {
 
   type Shape = Int
 
-  def random: Block = Block(matrixFrom(Random.nextInt(7)), 0, 0)
+  def random: (Shape, Block) = {
+    val shape = Random.nextInt(7)
+    (shape, Block(matrixFrom(shape), 0, 0))
+  }
 
   private val matrixFrom: Map[Shape, Matrix] = Map(
     0 -> Matrix {
