@@ -43,6 +43,8 @@ case class Matrix(protected val m: Vector[Vector[Boolean]]) {
     Matrix(mergedVectors)
   }
 
+  def toMatrixString: String = m.map(_.map(b => if (b) '#' else '.').mkString).mkString("\n")
+
 }
 
 object Matrix {

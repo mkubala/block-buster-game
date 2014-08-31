@@ -1,6 +1,6 @@
 package controllers
 
-import actors.BlockBusterGameActor
+import actors.GameActor
 import play.api.libs.json.JsValue
 import play.api.mvc._
 
@@ -15,7 +15,7 @@ object Application extends Controller {
   }
 
   def gameSocket(playerName: String) = WebSocket.tryAccept[JsValue] { request =>
-    BlockBusterGameActor.join(playerName)
+    GameActor.join(playerName)
   }
 
 }

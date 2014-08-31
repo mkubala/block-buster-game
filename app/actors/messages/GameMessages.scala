@@ -1,19 +1,9 @@
 package actors.messages
 
 import play.api.libs.json._
+import actors.state.Block
 
 object GameMessages {
-
-  case class Tick(playerName: String) extends Message {
-    val kind = "tick"
-  }
-
-  object Tick {
-    implicit val jsonWrites: Writes[Tick] = new Writes[Tick] {
-      override def writes(tick: Tick): JsValue =
-        Message.json("tick", tick.playerName, JsObject(Seq.empty[(String, JsValue)]))
-    }
-  }
 
   sealed class MoveDirection(val encodedVal: Int)
 
@@ -34,7 +24,18 @@ object GameMessages {
       }
   }
 
-  case class Move(playerName: String, direction: MoveDirection) extends Message {
+  case object UnsupportedMessage extends Message {
+    val playerName = None
+    val kind = "unsupported"
+  }
+
+  case class BlockMoved(player: String, direction: MoveDirection) extends Message {
+    val playerName = Some(player)
+    val kind = "blockMoved"
+  }
+
+  case class Move(player: String, direction: MoveDirection) extends Message {
+    val playerName = Some(player)
     val kind = Move.kind
   }
 
@@ -55,9 +56,10 @@ object GameMessages {
     }
   }
 
-  case class PlayerEvent(event: JsValue)
+  case class PlayerEvent(payload: JsValue)
 
-  case class BlockEmbedded(playerName: String, blockShape: BlockEmbedded.BlockShape) extends Message {
+  case class BlockEmbedded(player: String, newBlock: Block) extends Message {
+    val playerName = Some(player)
     val kind = BlockEmbedded.kind
   }
 
@@ -65,23 +67,15 @@ object GameMessages {
     type BlockShape = Int
     val kind = "embedded"
 
-    implicit val jsonFormat: Format[BlockEmbedded] = new Format[BlockEmbedded] {
+    implicit val jsonFormat: Writes[BlockEmbedded] = new Writes[BlockEmbedded] {
       override def writes(be: BlockEmbedded): JsValue = {
         val payload = JsObject(Seq(
           ("newBlock" -> JsObject(Seq(
-            ("shape" -> JsNumber(be.blockShape))
+            ("shape" -> JsNumber(be.newBlock.origShape))
           )))
         ))
         Message.json(kind, be.playerName, payload)
       }
-
-      override def reads(json: JsValue): JsResult[BlockEmbedded] =
-        (for {
-          kind <- (json \ "kind").asOpt[String]
-          if (kind == BlockEmbedded.kind)
-          player <- (json \ "player").asOpt[String]
-          shape <- (json \ "payload" \ "newBlock" \ "shape").asOpt[BlockShape]
-        } yield BlockEmbedded(player, shape)).map(JsSuccess(_)).getOrElse(JsError())
     }
 
   }

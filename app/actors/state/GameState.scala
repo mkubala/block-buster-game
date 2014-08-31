@@ -1,18 +1,12 @@
 package actors.state
 
-case class GameState(playerStates: Map[String, PlayerState]) {
+import akka.actor.ActorRef
 
-  def without(playerName: String): GameState = copy(playerStates = playerStates - playerName)
+case class GameState(players: Map[String, ActorRef]) {
 
-  def withUpdatedPlayerState(playerState: PlayerState) =
-    copy(playerStates = playerStates + (playerState.name -> playerState))
+  def withoutPlayer(playerName: String): GameState = copy(players = players - playerName)
 
-  def moveBlockDown(playerName: String): (GameState, Option[Block]) = {
-    playerStates.get(playerName) match {
-      case Some(playerState) =>
-        val (newPlayerState, maybeNewBlock) = playerState.moveBlockDown
-        (withUpdatedPlayerState(newPlayerState), maybeNewBlock)
-      case None => (this, None)
-    }
-  }
+  def withPlayer(playerName: String, player: ActorRef) =
+    copy(players = players + (playerName -> player))
+
 }

@@ -4,6 +4,8 @@ import org.specs2.mutable.Specification
 
 class BoardSpec extends Specification {
 
+  val someRandomBlockShape = 0
+
   "Embedding" should {
     "return the same board" in {
       val board = Board.empty(4, 4)
@@ -13,7 +15,8 @@ class BoardSpec extends Specification {
             Vector(true, true, false),
             Vector(false, true, true)
           )
-        }
+        }, 0, 0,
+        someRandomBlockShape
       )
 
       // block is outside board
@@ -28,7 +31,8 @@ class BoardSpec extends Specification {
             Vector(true, true, false),
             Vector(false, true, true)
           )
-        }, 1, 3
+        }, 1, 3,
+        someRandomBlockShape
       )
 
       board.embed(block).matrix should be equalTo Matrix {

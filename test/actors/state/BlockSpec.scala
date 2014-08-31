@@ -17,6 +17,8 @@ class BlockSpec extends Specification {
 
     "notice block embedded" in {
 
+      val someRandomShape = 0
+
       "when reach board's bottom" in {
         val board = Board.empty(5, 10)
         val block = Block(Matrix {
@@ -25,7 +27,7 @@ class BlockSpec extends Specification {
             Vector(true, true),
             Vector(true, false)
           )
-        }, 1, 0)
+        }, 1, 0, someRandomShape)
         assertEmbeddedAfter(block, board, 10)
       }
 
@@ -35,7 +37,7 @@ class BlockSpec extends Specification {
             Vector(
               Vector(true, false),
               Vector(true, true))
-          }, 1, 9)
+          }, 1, 9, someRandomShape)
         }
         val block = Block(Matrix {
           Vector(
@@ -43,7 +45,7 @@ class BlockSpec extends Specification {
             Vector(true, true),
             Vector(true, false)
           )
-        }, 1, 0)
+        }, 1, 0, someRandomShape)
         assertEmbeddedAfter(block, board, 7)
       }
 
@@ -53,7 +55,7 @@ class BlockSpec extends Specification {
             Vector(
               Vector(false, true),
               Vector(true, true))
-          }, 1, 9)
+          }, 1, 9, someRandomShape)
         }
         val block = Block(Matrix {
           Vector(
@@ -61,7 +63,7 @@ class BlockSpec extends Specification {
             Vector(true, true),
             Vector(true, false)
           )
-        }, 1, 0)
+        }, 1, 0, someRandomShape)
         assertEmbeddedAfter(block, board, 8)
       }
     }

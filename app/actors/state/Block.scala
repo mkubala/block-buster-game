@@ -2,7 +2,7 @@ package actors.state
 
 import scala.util.Random
 
-case class Block(val matrix: Matrix, x: Int = 0, y: Int = 0) {
+case class Block(val matrix: Matrix, x: Int = 0, y: Int = 0, origShape: Block.Shape) {
 
   val boardX = x
   val boardY = y - matrix.height
@@ -13,16 +13,16 @@ case class Block(val matrix: Matrix, x: Int = 0, y: Int = 0) {
       board(x + xOffset, y - yOffset)
     }
 
-  def oneRowDown: Block = new Block(matrix, x, y + 1)
+  def oneRowDown: Block = copy(y = y + 1)
 }
 
 object Block {
 
   type Shape = Int
 
-  def random: (Shape, Block) = {
+  def random: Block = {
     val shape = Random.nextInt(7)
-    (shape, Block(matrixFrom(shape), 0, 0))
+    Block(matrixFrom(shape), 0, 0, shape)
   }
 
   private val matrixFrom: Map[Shape, Matrix] = Map(
