@@ -1,6 +1,6 @@
 package actors.messages
 
-import play.api.libs.json.{JsNull, JsValue, JsString, JsObject}
+import play.api.libs.json._
 
 object Message {
   def json[T](kind: String, player: Option[String], payload: JsValue): JsValue =
@@ -12,7 +12,9 @@ object Message {
 }
 
 trait Message {
+
   def kind: String
 
   def playerName: Option[String]
+
 }

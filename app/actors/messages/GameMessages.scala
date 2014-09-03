@@ -1,7 +1,7 @@
 package actors.messages
 
-import play.api.libs.json._
 import actors.state.Block
+import play.api.libs.json._
 
 object GameMessages {
 
@@ -44,9 +44,9 @@ object GameMessages {
 
     implicit val jsonFormat: Format[Move] = new Format[Move] {
 
-      override def writes(move: Move): JsValue = Message.json(Move.kind, move.playerName, JsObject(Seq(
+      override def writes(move: Move): JsValue = JsObject(Seq(
         ("direction" -> JsNumber(move.direction.encodedVal))
-      )))
+      ))
 
       override def reads(json: JsValue): JsResult[Move] = JsSuccess {
         val player = (json \ "player").as[String]
@@ -58,6 +58,30 @@ object GameMessages {
 
   case class PlayerEvent(payload: JsValue)
 
+  case class GameStarted(playerBlockShapes: Seq[(String, Block)]) extends Message {
+    val kind = "gameStarted"
+    val playerName = None
+  }
+
+  object GameStarted {
+    val kind = "playerStarted"
+
+    implicit val jsonWrites = new Writes[GameStarted] {
+      override def writes(o: GameStarted): JsValue = JsObject(Seq(
+        ("playerBlocks" -> JsArray(o.playerBlockShapes map { a =>
+          val (playerName, block) = a
+          JsObject(Seq(
+            ("player" -> JsString(playerName)),
+            ("block" -> JsObject(Seq(
+              ("shape" -> JsNumber(block.origShape))
+            )))
+          ))
+        }))
+
+      ))
+    }
+  }
+
   case class BlockEmbedded(player: String, newBlock: Block) extends Message {
     val playerName = Some(player)
     val kind = BlockEmbedded.kind
@@ -67,15 +91,12 @@ object GameMessages {
     type BlockShape = Int
     val kind = "embedded"
 
-    implicit val jsonFormat: Writes[BlockEmbedded] = new Writes[BlockEmbedded] {
-      override def writes(be: BlockEmbedded): JsValue = {
-        val payload = JsObject(Seq(
+    implicit val jsonWrites: Writes[BlockEmbedded] = new Writes[BlockEmbedded] {
+      override def writes(be: BlockEmbedded): JsValue = JsObject(Seq(
           ("newBlock" -> JsObject(Seq(
             ("shape" -> JsNumber(be.newBlock.origShape))
           )))
         ))
-        Message.json(kind, be.playerName, payload)
-      }
     }
 
   }

@@ -2,6 +2,7 @@ package actors
 
 import actors.messages.ConnectionMessages._
 import actors.messages.GameMessages._
+import actors.messages.Message
 import actors.state._
 import akka.actor._
 import akka.pattern.ask
@@ -15,7 +16,6 @@ import play.api.mvc.Result
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import actors.messages.Message
 
 object GameActor {
 
@@ -58,8 +58,14 @@ class GameActor extends Actor with ActorLogging {
       log.debug(s"$username joined")
       sender() ! Connected(inputEnumerator)
       val gameState = setUpNewGame(players + username)
-      gameState.players.values foreach (_ ! PlayerActor.Start(Block.random))
+      val playerBlocks = gameState.players.keys map (pn => (pn -> Block.random))
+      for {
+        (playerName, block) <- playerBlocks
+        playerRef <- gameState.players.get(playerName)
+      } playerRef ! PlayerActor.Start(block)
+
       context.become(playingGame(gameState))
+      sendBroadcast(GameStarted(playerBlocks.toList))
     case Disconnected(username) => context.become(waitingForPlayers(players - username))
     case _ => ()
   }
@@ -71,17 +77,15 @@ class GameActor extends Actor with ActorLogging {
     }
   } orElse {
     case Disconnected(playerName) =>
-//      gameState.players.get(playerName) foreach (_ ! PoisonPill)
+      gameState.players.get(playerName) foreach (_ ! PoisonPill)
       log.debug(s"Player $playerName has left the game.")
       if (gameState.players.size == 1) {
         context.become(waitingForPlayers(Set.empty[String]))
       } else {
         context.become(playingGame(gameState.withoutPlayer(playerName)))
       }
-    case BlockMoved(playerName, direction) =>
-      sendBroadcast(Json.toJson(Move(playerName, direction)))
-    case e: BlockEmbedded =>
-      sendBroadcast(Json.toJson(e))
+    case BlockMoved(playerName, direction) => sendBroadcast(Move(playerName, direction))
+    case e: BlockEmbedded => sendBroadcast(e)
   }
 
   def receivePlayerEvent(playerEventReceive: (Message => Unit)): Receive = {
@@ -92,6 +96,10 @@ class GameActor extends Actor with ActorLogging {
       }
       playerEventReceive(parsedMessage.getOrElse(UnsupportedMessage))
     }
+  }
+
+  def sendBroadcast[T <: Message](msg: T)(implicit w: Writes[T]) {
+    sendBroadcast(Message.json(msg.kind, msg.playerName, w.writes(msg)))
   }
 
   def sendBroadcast(message: JsValue) {
@@ -105,53 +113,5 @@ class GameActor extends Actor with ActorLogging {
       name -> context.actorOf(PlayerActor.named(name), name)
     }(collection.breakOut)
   }
-
-}
-
-object PlayerActor {
-
-  def named(playerName: String): Props = Props(classOf[PlayerActor], playerName)
-
-  case object Tick
-
-  case class Start(block: Block)
-
-//  case class PlayerStarted(blockShape: Block.Shape)
-
-}
-
-class PlayerActor(playerName: String) extends Actor with ActorLogging {
-
-  override def receive = waiting
-
-
-  override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(PlayerState.defaultTickInterval, self, PlayerActor.Tick)
-  }
-
-  override def postRestart(reason: Throwable): Unit = {}
-
-  def waiting: Receive = {
-    case PlayerActor.Start(block) =>
-      log.debug(s"player $playerName have received Start message")
-      context.become(playingGame(PlayerState.withBlock(block)))
-  }
-
-  def playingGame(state: PlayerState): Receive = {
-    case PlayerActor.Tick =>
-      self ! Move(playerName, MoveDown)
-      context.system.scheduler.scheduleOnce(state.tickInterval, self, PlayerActor.Tick)
-    case Move(_, MoveDown) => {
-      val (newState, maybeNewBlock) = state.moveBlockDown
-      context.parent ! (maybeNewBlock map {
-        newBlock =>
-          BlockEmbedded(playerName, newBlock)
-      } getOrElse {
-        BlockMoved(playerName, MoveDown)
-      })
-      context.become(playingGame(newState))
-    }
-  }
-
 
 }
